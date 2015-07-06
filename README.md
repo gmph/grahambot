@@ -23,6 +23,10 @@ My additions include admin user profiles, contact recording in a database, dynam
 
 Log in to Telegram and message [@grahambot](http://telegram.me/grahambot) – see what he can do!
 
+### Licence 
+
+GrahamBot is provided under an Apache 2.0 licence. You may use the code as you wish under the same open licence, provided you give attribution, make your changes clear, and keep all copyright notices. Go and tinker with it!
+
 ### About Graham
 
 This project was created by Graham Macphee, a Designer and Front-end Developer from Scotland. You can follow him on Twitter [@gmph](http://twitter.com/gmph) to stay updated with little projects like this. Have a lovely day!
