@@ -6,41 +6,51 @@ import urllib
 import urllib2
 import re
 
-# for sending images
+# For sending images:
 from PIL import Image
 import multipart
 
 
-# for datastore of users and work status
+# For datastore of users and work status:
 from google.appengine.ext import db
 from google.appengine.api import users
 from google.appengine.ext.db import stats
 
 
-# standard app engine imports
+# Standard app engine imports:
 from google.appengine.api import urlfetch
 from google.appengine.ext import ndb
 import webapp2
 
 
-# Telegram API Settings:
+# Telegram API and Admin Settings:
+# Add a file private.py to the directory with the following code:
+#
+# token = 'YOUR_AUTH_TOKEN'
+# admin = YOUR_CHAT_ID
+#
+# Note that your chat_id should be an int and your token should be a string.
 
-from private import token
+from private import token, admin
 BASE_URL = 'https://api.telegram.org/bot' + token + '/'
-ADMIN_ON = True
+ADMIN_ON = True # Admin sees admin view by default, not user view
+ADMIN_ID = admin
 
 # Datastore Entities:
 
+# For storing if/where I'm working:
 class WorkStatus(db.Model):
     work_name = db.StringProperty(required=True)
     work_link = db.StringProperty(required=True)
     work_email = db.StringProperty(required=True)
     work_available = db.BooleanProperty(indexed=False)
 
+# For storing extra custom messages that can be set by the admin:
 class Messages(db.Model):
     message_name = db.StringProperty(required=True)
     message_content = db.StringProperty(required=True)
 
+# For storing the details of people who use the bot:
 class Contacts(db.Model):
     contact_firstname = db.StringProperty(required=True,multiline=True)
     contact_lastname = db.StringProperty(required=False,multiline=True)
@@ -51,8 +61,6 @@ class Contacts(db.Model):
 # Work Status Functions:
 
 def refreshWorkStatus():
-    global work_statuses
-    global work_status1
     global WORK_NAME
     global WORK_LINK
     global WORK_EMAIL
@@ -117,13 +125,12 @@ def setMessage(name,content):
     mnew.put()
 
 
-# ================================
+# Default Status and Handlers:
 
 class EnableStatus(ndb.Model):
     # key name: str(chat_id)
     enabled = ndb.BooleanProperty(indexed=False, default=False)
 
-# ================================
 
 def setEnabled(chat_id, yes):
     es = EnableStatus.get_or_insert(str(chat_id))
@@ -136,20 +143,15 @@ def getEnabled(chat_id):
         return es.enabled
     return False
 
-
-# ================================
-
 class MeHandler(webapp2.RequestHandler):
     def get(self):
         urlfetch.set_default_fetch_deadline(60)
         self.response.write(json.dumps(json.load(urllib2.urlopen(BASE_URL + 'getMe'))))
 
-
 class GetUpdatesHandler(webapp2.RequestHandler):
     def get(self):
         urlfetch.set_default_fetch_deadline(60)
         self.response.write(json.dumps(json.load(urllib2.urlopen(BASE_URL + 'getUpdates'))))
-
 
 class SetWebhookHandler(webapp2.RequestHandler):
     def get(self):
@@ -158,6 +160,7 @@ class SetWebhookHandler(webapp2.RequestHandler):
         if url:
             self.response.write(json.dumps(json.load(urllib2.urlopen(BASE_URL + 'setWebhook', urllib.urlencode({'url': url})))))
 
+# Fetch message when posted:
 
 class WebhookHandler(webapp2.RequestHandler):
     def post(self):
@@ -183,9 +186,11 @@ class WebhookHandler(webapp2.RequestHandler):
             logging.info('no text')
             return
 
+        # Message Sending Functions:
+
         def fwdToMe(frchatid,msgid):
             resp = urllib2.urlopen(BASE_URL + 'forwardMessage', urllib.urlencode({
-                'chat_id': str(1068250), # @grahammacphee's chat_id
+                'chat_id': str(ADMIN_ID), # @grahammacphee's chat_id
                 'from_chat_id': frchatid,
                 'message_id': msgid,
             }))
@@ -218,23 +223,28 @@ class WebhookHandler(webapp2.RequestHandler):
             logging.info('Send response:')
             logging.info(resp)
 
-
-        # DEFINING MESSAGES FROM HERE: #
+        # For each message that arrives:
 
         refreshWorkStatus()
 
-        if (chat_id == 1068250):
+        # Type / to enable and disable admin view:
+
+        if (chat_id == ADMIN_ID):
             global ADMIN_ON
             if text == "/":
                 ADMIN_ON = not ADMIN_ON
                 reply("Admin: " + str(ADMIN_ON))
 
-        if (chat_id == 1068250) and (ADMIN_ON): # ADMIN COMMANDS
+        # Admin Commands:
+
+        if (chat_id == ADMIN_ID) and (ADMIN_ON):
 
             global WORK_AVAILABLE
             global WORK_NAME
             global WORK_LINK
             global WORK_EMAIL
+
+            # Basic Start and Stop Admin Commands:
 
             if text == "/start":
                 reply("Type /set and I'll remind you what I can update for you, or type /check to see what info I have currently. If you want to see who's messaged me recently type /contacts. To set a welcome message, type /message welcome followed by your extra message for new users.")
@@ -242,6 +252,8 @@ class WebhookHandler(webapp2.RequestHandler):
             elif text == '/stop':
                 reply('Have a lovely day!')
                 setEnabled(chat_id, False)
+
+            # Set Admin Command for Work Status:
 
             elif text == "/set":
                 reply("Type /set available true | false to set work availability. Type /set employer followed by a name to set your employer. Type /set link followed by a URL to set the link to your employer's site. Type /set email followed by an address to set your work email.")
@@ -266,8 +278,12 @@ class WebhookHandler(webapp2.RequestHandler):
                 setWorkStatus('','',text[len('/set email')+1:len(text)],False)
                 reply("Okay, I'll tell people they can contact you at "+ text[len('/set email')+1:len(text)] + " if they'd like to discuss " + WORK_NAME + ".")
 
+            # Check Admin Command for Work Status:
+
             elif text == '/check':
                 reply("Here are your current details: \nEmployer: " + WORK_NAME + "\nLink: " + WORK_LINK + "\nEmail: " + WORK_EMAIL + "\nAvailable: " + str(WORK_AVAILABLE).lower())
+
+            # Recent Contacts Admin Command:
 
             elif text == '/contacts':
                 contacts = Contacts.all()
@@ -275,12 +291,18 @@ class WebhookHandler(webapp2.RequestHandler):
                 contactlist = ""
 
                 for contact in recentcontacts:
-                    if contact.contact_username == None:
-                        contactlist += ("\n"+re.sub('[^0-9a-zA-Z]+', '*', contact.contact_firstname)+": "+contact.contact_id)
-                    else:
-                        contactlist += ("\n"+re.sub('[^0-9a-zA-Z]+', '*', contact.contact_firstname)+": @"+contact.contact_username+" "+contact.contact_id)
+                    if contact.contact_id != str(ADMIN_ID):
+                        if contact.contact_username == None:
+                            contactlist += ("\n"+re.sub('[^0-9a-zA-Z]+', '*', contact.contact_firstname)+": "+contact.contact_id)
+                        else:
+                            contactlist += ("\n"+re.sub('[^0-9a-zA-Z]+', '*', contact.contact_firstname)+": "+contact.contact_id+" @"+contact.contact_username)
 
                 reply("Recent contacts:" + contactlist)
+                reply("Type /msgid followed by a user's ID then your message and I'll pass it along to them.")
+
+            # Message ID Admin Command:
+
+            elif text == '/msgid':
                 reply("Type /msgid followed by a user's ID then your message and I'll pass it along to them.")
 
             elif text.startswith('/msgid'):
@@ -290,6 +312,9 @@ class WebhookHandler(webapp2.RequestHandler):
                 msg = content[len(splitcontent[0])+1:len(content)]
                 replyWithBot(toid,msg)
                 reply("Sent to "+toid+"!")
+
+            elif text == '/message':
+                reply("To set a welcome message, type /message welcome followed by your extra message for new users.")
 
             elif text.startswith('/message'):
                 content = text[len('/message')+1:len(text)]
@@ -302,14 +327,19 @@ class WebhookHandler(webapp2.RequestHandler):
             else:
                 reply("Type /set and I'll remind you what I can update for you, or type /check to see what info I have currently. If you want to see who's messaged me recently type /contacts. To set a welcome message, type /message welcome followed by your extra message for new users.")
 
+        # Standard User Commands:
 
-        else: # USER COMMANDS
+        else:
+
+            # Create display-safe name variables:
 
             fr_firstname_safe = re.sub('[^0-9a-zA-Z]+', '*', fr_firstname)
             if fr_lastname !=None:
                 fr_lastname_safe = re.sub('[^0-9a-zA-Z]+', '*', fr_lastname)
             else:
                 fr_lastname_safe = None
+
+            # Store the current contact and update data:
 
             cnew = Contacts(key_name=str(chat_id),
                            contact_firstname=fr_firstname_safe,
@@ -320,9 +350,13 @@ class WebhookHandler(webapp2.RequestHandler):
 
             if text.startswith('/'):
 
+                # Basic Start and Stop Commands:
+
                 if text == '/start':
                     reply("Hey "+fr_firstname_safe+"! How can I help you? Type /feedback to share your thoughts on something Graham's worked on, /enquiry to check his availability for work, or /info to find out more about him.")
                     setEnabled(chat_id, True)
+
+                    # Add in extra welcome message if provided:
 
                     messages = Messages.all()
                     for message in messages:
@@ -333,12 +367,16 @@ class WebhookHandler(webapp2.RequestHandler):
                     reply('Have a lovely day!')
                     setEnabled(chat_id, False)
 
+                # Feedback Command:
+
                 elif text.startswith('/feedback'):
                     if text == '/feedback':
-                        reply("Type /feedback followed by your feedback in a single message. Let me know what you think of any of Graham's design work and I'll forward your message to him. Try to link to the design if you have the URL to hand.")
+                        reply("Type /feedback followed by your feedback in a single message. Let me know what you think of any of Graham's work and I'll forward your message to him. Try to link to it if you have the URL to hand.")
                     else:
                         fwdToMe(chat_id,message_id)
                         reply("Thanks for your help! I've forwarded this on to Graham so he can have a look. If you'd like to say something else type /feedback again followed by a message.")
+
+                # Enquiry Command:
 
                 elif text == '/enquiry':
                     if WORK_AVAILABLE:
@@ -346,8 +384,12 @@ class WebhookHandler(webapp2.RequestHandler):
                     else:
                         reply("Graham is currently unavailable for design work. He's having fun working with the team at "+WORK_NAME+" ("+WORK_LINK+") on some interesting products. You can email him at "+WORK_EMAIL+" if you'd like to discuss "+WORK_NAME+". To stay up-to-date, follow him on Twitter: twitter.com/gmph.")
 
+                # Info Command:
+
                 elif text == '/info':
                     reply("Type /info followed by what you're looking for. I can help you find Graham's social profiles, blog, email address, portfolio, or tell you a little bit about him.")
+
+                # Respond in order with all matching criteria:
 
                 elif text.startswith('/info'):
                     replied = False
@@ -392,6 +434,8 @@ class WebhookHandler(webapp2.RequestHandler):
 
                 else:
                     reply("I can take feedback, enquiries and tell you about Graham. Type /feedback to send some feedback on something Graham's worked on, /enquiry to check his availability for work, or /info to find out more about him.")
+
+            # Just to acknowledge politeness:
 
             elif ('thanks' in text.lower()) or ('thank you' in text.lower()):
                 reply("I'm glad I could help! Is there anything else I can do for you? Type /feedback to send some feedback on something Graham's worked on, /enquiry to check his availability for work, or /info to find out more about him.")
