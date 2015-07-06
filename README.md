@@ -25,7 +25,7 @@ Log in to Telegram and message [@grahambot](http://telegram.me/grahambot) – se
 
 ### Licence 
 
-GrahamBot is provided under an Apache 2.0 licence. You may use the code as you wish under the same open licence, provided you give attribution, make your changes clear, and keep all copyright notices. Go and tinker with it!
+GrahamBot is provided under an [Apache 2.0 licence](https://raw.githubusercontent.com/gmph/grahambot/master/LICENSE). You may use the code as you wish under the same open licence, provided you give attribution, make your changes clear, and keep all copyright notices. Go and tinker with it!
 
 ### About Graham
 
