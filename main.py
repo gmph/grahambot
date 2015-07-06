@@ -427,7 +427,7 @@ class WebhookHandler(webapp2.RequestHandler):
                         reply("Blog: thinks.grahammacphee.co.uk")
                         replied = True
                     if 'about' in text.lower():
-                        reply("Graham is a Designer and Front-end Developer from Scotland. He enjoys photography, nature, singing and playing ukulele. He always gets caught up in building little projects like me on the weekends!")
+                        reply("Graham is a Designer and Front-end Developer from Scotland. He enjoys photography, nature, singing and playing ukulele. He always gets caught up building little projects like me on the weekends!")
                         replied = True
                     if replied == False:
                         reply("Sorry, I'm not sure what you're looking for. I can help you find Graham's social profiles, blog, email address, portfolio, or tell you a little bit about him. Type /info followed by what you're looking for.")
