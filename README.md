@@ -15,7 +15,7 @@ My additions include admin user profiles, contact recording in a database, dynam
         token = 'YOUR_AUTH_TOKEN' # your token as a string, e.g. '174076690:AAGI8EJ55hdLepi...'
         admin = YOUR CHAT_ID      # your chat id as an int, e.g. 1098359
 
-4. Customise the text in all of the areas with a `reply()` to make it personal to you.
+4. Customise the text in all of the areas with a `reply()` in main.py to make it personal to you.
 
 5. That's pretty much it! Before this app I had written about 10 lines of Python so my code may not be the best – but that should give you an idea of how easy it is to work with the API.
 
