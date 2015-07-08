@@ -4,6 +4,11 @@ The code in this repo is based heavily on the work of [@yukuku](http://github.co
 
 My additions include admin user profiles, contact recording in a database, dynamic message setting with a database, conditional message forwarding and a few more things.
 
+I've set up a little Gumroad page so you can donate if you have fun using the project:
+
+<script type="text/javascript" src="https://gumroad.com/js/gumroad.js"></script>
+#### <a class="gumroad-button" href="https://gumroad.com/l/lyjsM">Donate</a>
+
 ### Getting Started
 
 1. Head over to [@yukuku's in-depth tutorial](https://github.com/yukuku/telebot) to get your bot set up and deployed on Google App Engine. Once you're done, come back here and clone this repo.
