@@ -4,7 +4,7 @@ The code in this repo is based heavily on the work of [@yukuku](http://github.co
 
 My additions include admin user profiles, contact recording in a database, dynamic message setting with a database, conditional message forwarding and a few more things.
 
-I've set up a little Gumroad page so you can donate if you have fun using the project:
+I've set up a little Gumroad page so you can donate $2 if you have fun with the project:
 
 <script type="text/javascript" src="https://gumroad.com/js/gumroad.js"></script>
 #### <a class="gumroad-button" href="https://gumroad.com/l/lyjsM">Donate</a>
