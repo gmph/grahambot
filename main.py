@@ -5,6 +5,7 @@ import random
 import urllib
 import urllib2
 import re
+import requests
 
 # For sending images:
 from PIL import Image
@@ -22,6 +23,17 @@ from google.appengine.api import urlfetch
 from google.appengine.ext import ndb
 import webapp2
 
+# Yo API
+from private import yo_api_token
+
+# Twitter API
+from private import consumer_key, consumer_secret, access_token_key, access_token_secret
+import twitter
+api = twitter.Api(consumer_key=consumer_key,
+consumer_secret=consumer_secret, access_token_key=access_token_key, access_token_secret=access_token_secret)
+
+# mytwitter = api.GetUser(screen_name="gmph")
+# twitter_decription = api.GetDescription(mytwiter)
 
 # Telegram API and Admin Settings:
 # Add a file private.py to the directory with the following code:
@@ -57,6 +69,19 @@ class Contacts(db.Model):
     contact_id = db.StringProperty(required=True)
     contact_username = db.StringProperty(required=False)
 
+# For storing list of people who make enquiries:
+class Enquiries(db.Model):
+    chat_id = db.StringProperty(required=True)
+    update = db.BooleanProperty(indexed=False)
+
+# Enquiries Functions:
+
+def newEnquiry(id,bool):
+
+    enew = Enquiries(key_name=str(id),
+                   chat_id=str(id),
+                   update=bool)
+    enew.put()
 
 # Work Status Functions:
 
@@ -114,6 +139,8 @@ def setWorkStatus(name,link,email,available):
                        work_available=available)
         wnew.put()
         WORK_AVAILABLE == available
+
+    requests.post("http://api.justyo.co/yoall/", data={'api_token': yo_api_token, 'link': 'http://telegram.me/grahambot'})
 
 
 # Message Functions:
@@ -212,7 +239,6 @@ class WebhookHandler(webapp2.RequestHandler):
             elif img:
                 resp = multipart.post_multipart(BASE_URL + 'sendPhoto', [
                     ('chat_id', str(chat_id)),
-                    ('reply_to_message_id', str(message_id)),
                 ], [
                     ('photo', 'image.jpg', img),
                 ])
@@ -287,7 +313,7 @@ class WebhookHandler(webapp2.RequestHandler):
 
             elif text == '/contacts':
                 contacts = Contacts.all()
-                recentcontacts = contacts.fetch(20)
+                recentcontacts = contacts.fetch(50)
                 contactlist = ""
 
                 for contact in recentcontacts:
@@ -379,15 +405,18 @@ class WebhookHandler(webapp2.RequestHandler):
                 # Enquiry Command:
 
                 elif text == '/enquiry':
+                    newEnquiry(chat_id,True)
                     if WORK_AVAILABLE:
                         reply("Good news! Graham's currently seeking a position at an interesting startup. He specialises in UI and UX design, and front-end web development. Have a look at his portfolio at grahammacphee.co.uk. You can email Graham at hi@grahammacphee.co.uk or message him here @grahammacphee directly for a more informal chat about any opportunities.")
                     else:
                         reply("Graham is currently unavailable for design work. He's having fun working with the team at "+WORK_NAME+" ("+WORK_LINK+") on some interesting products. You can email him at "+WORK_EMAIL+" if you'd like to discuss "+WORK_NAME+". To stay up-to-date, follow him on Twitter: twitter.com/gmph.")
 
+                    reply("I'll message you when Graham updates his status. You can also send a Yo to @grahambot to get updates: justyo.co/grahambot")
+
                 # Info Command:
 
                 elif text == '/info':
-                    reply("Type /info followed by what you're looking for. I can help you find Graham's social profiles, blog, email address, portfolio, or tell you a little bit about him.")
+                    reply("Type /info followed by what you're looking for. I can help you find Graham's social profiles, blog, email address, portfolio, profile picture, or tell you a little bit about him.")
 
                 # Respond in order with all matching criteria:
 
@@ -397,7 +426,7 @@ class WebhookHandler(webapp2.RequestHandler):
                         reply("Type /info followed by the profile(s) you're looking for, e.g. Twitter, Dribbble, GitHub...")
                         replied = True
                     if 'twitter' in text.lower():
-                        reply("Twitter: twitter.com/gmph")
+                        reply("Twitter: twitter.com/gmph\nLatest tweet: "+str(api.VerifyCredentials().text))
                         replied = True
                     if 'dribbble' in text.lower():
                         reply("Dribbble: dribbble.com/gmph")
@@ -426,8 +455,18 @@ class WebhookHandler(webapp2.RequestHandler):
                     if 'blog' in text.lower():
                         reply("Blog: thinks.grahammacphee.co.uk")
                         replied = True
-                    if 'about' in text.lower():
+                    if ('picture' in text.lower()) or ('photo' in text.lower()):
+                        normalimgurl = str(api.VerifyCredentials().profile_image_url)
+                        largeimgurl = normalimgurl[:-11]+".jpg"
+                        resp = urllib2.urlopen(BASE_URL + 'sendMessage', urllib.urlencode({
+                            'chat_id': str(chat_id),
+                            'text': ("Graham's profile photo: "+largeimgurl).encode('utf-8'),
+                            'disable_web_page_preview': 'false',
+                        })).read()
+                        replied = True
+                    if (('about' in text.lower()) or ('description' in text.lower())) or ('bio' in text.lower()):
                         reply("Graham is a Designer and Front-end Developer from Scotland. He enjoys photography, nature, singing and playing ukulele. He always gets caught up building little projects like me on the weekends!")
+                        reply("Graham's latest Twitter bio says: "+str(api.VerifyCredentials().description))
                         replied = True
                     if replied == False:
                         reply("Sorry, I'm not sure what you're looking for. I can help you find Graham's social profiles, blog, email address, portfolio, or tell you a little bit about him. Type /info followed by what you're looking for.")
